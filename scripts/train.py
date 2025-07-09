@@ -9,21 +9,22 @@ import os
 
 def train():
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = UNet(time_emb_dim=128).to(device)
+    model = UNet(time_emb_dim=128, class_emb_dim=64, num_classes=10).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
     diffusion = ForwardDiffusion(timesteps=1000)
     dataloader = get_mnist_loaders(batch_size=128)
 
-    for epoch in range(1):
+    for epoch in range(10):
         running_loss = 0.0
         progress_bar = tqdm(dataloader, desc=f"Epoch {epoch+1}", leave=False)
-        for x, _ in progress_bar:
+        for x, labels in progress_bar:
             x = x.to(device)
+            labels = labels.to(device)
             t = torch.randint(0, diffusion.timesteps, (x.shape[0],), device=device)
             noise = torch.randn_like(x)
             noisy_x = diffusion.q_sample(x, t, noise)
 
-            pred_noise = model(noisy_x, t)
+            pred_noise = model(noisy_x, t, labels)
             loss = F.mse_loss(pred_noise, noise)
 
             optimizer.zero_grad()
@@ -36,7 +37,7 @@ def train():
         avg_loss = running_loss / len(dataloader)
         print(f"Epoch {epoch+1}, Avg Loss: {avg_loss:.4f}")
 
-    torch.save(model.state_dict(), "checkpoints/unet_time_conditional.pth")
+    torch.save(model.state_dict(), "checkpoints/unet_class_conditional.pth")
 
 
 if __name__ == "__main__":

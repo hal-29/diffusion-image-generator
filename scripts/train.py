@@ -14,7 +14,7 @@ def train():
     diffusion = ForwardDiffusion(timesteps=1000)
     dataloader = get_mnist_loaders(batch_size=128)
 
-    for epoch in range(10):
+    for epoch in range(1):
         running_loss = 0.0
         progress_bar = tqdm(dataloader, desc=f"Epoch {epoch+1}", leave=False)
         for x, labels in progress_bar:

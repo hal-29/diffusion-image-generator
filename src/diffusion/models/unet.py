@@ -3,6 +3,7 @@ import torch.nn.functional as F
 import torch.nn as nn
 from diffusion.utils.time_embedding import SinusoidalTimeEmbedding
 from diffusion.utils.class_embedding import ClassEmbedding
+from diffusion.models.attention import SelfAttention
 
 
 class ResidualBlock(nn.Module):
@@ -57,31 +58,38 @@ class UNet(nn.Module):
         # Class embedding
         self.class_embed = ClassEmbedding(num_classes, class_emb_dim)
 
-        # Encoder/Decoder
         self.down1 = ResidualBlock(in_channels, 64, time_emb_dim, class_emb_dim)
+        self.attn1 = SelfAttention(64)
         self.down2 = ResidualBlock(64, 128, time_emb_dim, class_emb_dim)
-        self.mid = ResidualBlock(128, 128, time_emb_dim, class_emb_dim)
+
+        self.mid_block1 = ResidualBlock(128, 128, time_emb_dim, class_emb_dim)
+        self.mid_attn = SelfAttention(128)
+        self.mid_block2 = ResidualBlock(128, 128, time_emb_dim, class_emb_dim)
+
         self.up1 = ResidualBlock(128 + 128, 64, time_emb_dim, class_emb_dim)
+        self.attn2 = SelfAttention(64)
         self.up2 = ResidualBlock(64 + 64, 32, time_emb_dim, class_emb_dim)
+
         self.out = nn.Conv2d(32, out_channels, kernel_size=1)
 
     def forward(self, x, t, labels):
-        # Time embedding
-        t_emb = self.time_embed(t)
-        t_emb = self.time_mlp(t_emb)
-
-        # Class embedding
+        # Time and class embedding (unchanged)
+        t_emb = self.time_mlp(self.time_embed(t))
         class_emb = self.class_embed(labels)
 
         # Encoder
         x1 = self.down1(x, t_emb, class_emb)
+        x1 = self.attn1(x1)
         x2 = self.down2(x1, t_emb, class_emb)
 
         # Bottleneck
-        x_mid = self.mid(x2, t_emb, class_emb)
+        x_mid = self.mid_block1(x2, t_emb, class_emb)
+        x_mid = self.mid_attn(x_mid)
+        x_mid = self.mid_block2(x_mid, t_emb, class_emb)
 
         # Decoder
         x_up1 = self.up1(torch.cat([x_mid, x2], dim=1), t_emb, class_emb)
+        x_up1 = self.attn2(x_up1)
         x_up2 = self.up2(torch.cat([x_up1, x1], dim=1), t_emb, class_emb)
 
         return self.out(x_up2)

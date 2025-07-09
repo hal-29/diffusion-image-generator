@@ -3,6 +3,7 @@ from diffusion.models.unet import UNet
 from diffusion.diffusion.forward import ForwardDiffusion
 from diffusion.utils.schedulers import cosine_beta_schedule
 import matplotlib.pyplot as plt
+from diffusion.sampling import DDIMSampler
 
 
 @torch.no_grad()
@@ -26,25 +27,35 @@ def p_sample(model, x, t, t_index, labels):
         return mean + torch.sqrt(posterior_variance_t) * noise
 
 
-def generate_digit(digit, num_samples=1):
+def generate_digit(digit, num_samples=1, use_ddim=True, steps=50):
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = UNet(time_emb_dim=128, class_emb_dim=64, num_classes=10).to(device)
+    model = UNet(...).to(device)
     model.load_state_dict(torch.load("checkpoints/unet_class_conditional.pth"))
     model.eval()
 
     labels = torch.full((num_samples,), digit, device=device)
-    x = torch.randn((num_samples, 1, 32, 32), device=device)
 
-    for t in reversed(range(diffusion.timesteps)):
-        t_tensor = torch.full((num_samples,), t, device=device)
-        x = p_sample(model, x, t_tensor, t, labels)
+    if use_ddim:
+        sampler = DDIMSampler(model, diffusion, eta=0.0)
+        x = sampler.sample(
+            shape=(num_samples, 1, 32, 32), labels=labels, num_steps=steps
+        )
+    else:
+        x = torch.randn((num_samples, 1, 32, 32), device=device)
+        for t in reversed(range(diffusion.timesteps)):
+            t_tensor = torch.full((num_samples,), t, device=device)
+            x = p_sample(model, x, t_tensor, t, labels)
 
     plt.imshow(x[0, 0].cpu().numpy(), cmap="gray")
-    plt.title(f"Generated Digit: {digit}")
+    plt.title(
+        f"Generated Digit: {digit} (DDIM, {steps} steps)"
+        if use_ddim
+        else f"Digit: {digit} (DDPM)"
+    )
     plt.axis("off")
     plt.show()
 
 
 if __name__ == "__main__":
     diffusion = ForwardDiffusion(timesteps=1000)
-    generate_digit(digit=7)
+    generate_digit(digit=3, use_ddim=True, steps=20)

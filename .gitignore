@@ -1,0 +1,23 @@
+# Python files
+*.py[cod]
+__pycache__/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Virtual environment directories
+venv/
+.venv/
+env/
+.env
+
+# PyTorch model files
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.swp
+.DS_Store
+dataset
+/wandb/
+*.pt
+*.pth

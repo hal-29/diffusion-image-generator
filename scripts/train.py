@@ -9,7 +9,7 @@ import os
 
 def train():
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = UNet().to(device)
+    model = UNet(time_emb_dim=128).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
     diffusion = ForwardDiffusion(timesteps=1000)
     dataloader = get_mnist_loaders(batch_size=128)
@@ -23,7 +23,7 @@ def train():
             noise = torch.randn_like(x)
             noisy_x = diffusion.q_sample(x, t, noise)
 
-            pred_noise = model(noisy_x)
+            pred_noise = model(noisy_x, t)
             loss = F.mse_loss(pred_noise, noise)
 
             optimizer.zero_grad()
@@ -34,11 +34,9 @@ def train():
             progress_bar.set_postfix(loss=loss.item())
 
         avg_loss = running_loss / len(dataloader)
-        print(f"Epoch {epoch}, Avg Loss: {avg_loss:.4f}")
+        print(f"Epoch {epoch+1}, Avg Loss: {avg_loss:.4f}")
 
-    os.makedirs("checkpoints", exist_ok=True)
-    torch.save(model.state_dict(), "checkpoints/unet_mnist.pth")
-    print("Model saved to checkpoints/unet_mnist.pth")
+    torch.save(model.state_dict(), "checkpoints/unet_time_conditional.pth")
 
 
 if __name__ == "__main__":

@@ -73,7 +73,7 @@ class UNet(nn.Module):
         self.out = nn.Conv2d(32, out_channels, kernel_size=1)
 
     def forward(self, x, t, labels):
-        # Time and class embedding (unchanged)
+        # Time and class embedding
         t_emb = self.time_mlp(self.time_embed(t))
         class_emb = self.class_embed(labels)
 
